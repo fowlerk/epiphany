@@ -36,6 +36,13 @@ The application makes use of the Python logging service to provide information r
 ## Pyecobee Library
 The application makes use of a library that wraps the Ecobee API's into a simple but powerful set of API calls that return native Python objects.  This library was originally written by [@sfanous](https://github.com/sfanous/Pyecobee);  it is well documented here along with all of the object definitions, and Python getter / setter functions.  Unfortunately, it doesn't seem to be maintained any longer, which is a problem as new fields are added to the object definitions / Ecobee API calls.  There are a number of forks for this that DO seem to be maintained; the one I've chosen to use is by Daniel Sullivan(mumblepins), here:  [Pyecobee mumblepins](https://github.com/mumblepins/Pyecobee).  This library must first be installed into the local Python environment in order to use the ECC Ecobee application.
 
+## Ecobee API and Date / Time
+The underlying Ecobee API expects some API requests to be in thermostat time (local time), while others expect it to be in UTC form.  The library methods used here that accept a datetime object as an argument expects the argument to be passed in thermostat time.  The datetime object passed must be a timezone aware object.  The method will then either use the passed in datetime object as is, or convert it to its UTC time equivalent depending on the requirements of the ecobee API request being executed.  This is another advantage (consistency at least!) in the use of the library
+vs. the core Ecobee service routines.
+
+## Authorization and Access to the Ecobee Service
+The ecobee API is based on extensions to the OAuth 2.0 framework.  See here: [Authorization and Access](https://www.ecobee.com/home/developer/api/documentation/v1/auth/auth-intro.shtml) for details on how this is implemented.  The application makes the necessary calls to ensure updated access tokens are produced and / or refreshed as they expire.  If all else fails and these somehow become corrupted, detailed steps will be logged in order to re-authorize the application through the Ecobee portal.
+
 ## Error handling
 I have spent quite a bit of effort in identifying and handling the most common errors that can occur.  In most cases, if a severe error occurs, re-running the application at a later time should result in success without causing issues with data integrity, etc.
 
