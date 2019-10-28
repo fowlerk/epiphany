@@ -1,5 +1,5 @@
 # ECC Ecobee
-# Epiphany Catholic Church - Ecobee Thermostat Data Retrieval
+## Epiphany Catholic Church - Ecobee Thermostat Data Retrieval
 
 ## Overview
 This application will poll information for the Ecobee thermostats for Epiphany Catholic Church and write the resultant data to a SQLite database.
