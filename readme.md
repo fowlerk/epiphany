@@ -23,12 +23,16 @@ This installs the library into the local Python environment from the provided ar
    * database location
    * authorization tokens file location
    * thermostat revision interval file location
-3. Schedule the application to run on a recurring basis
+3. Schedule the application to run on a recurring basis.  Suggested scheduling is to run once each hour in order to collect snapshot data hourly.
 
 ## SQLite Data Structure
 All data associated with the Ecobee thermostats is written to one database with multiple tables.  The application will determine if the database exists, and if not, will create it automatically.  This is also true for the tables within the database.  As described above, there are many different record types associated with the details of a thermostat, and tables are created for each record type.
 The runtime historical data is keyed based on the combination of thermostat id, runtime date, and runtime time as reported from the thermostat.  As the data is reported and maintained by the service in local thermostat time, there likely will be gaps and / or overwrite situations that occur as a result of daylight savings time changes.  As of the initial version of this application, no allowances are made for this limitation, as it appears to be a restriction in the implementation by Ecobee.
 All snapshot data tables are keyed based on a combination of thermostat id and record-written date/time in UTC.  Given the timestamp when the records are written, there should be no issues with gaps or duplicates as with the historical runtime data.
+### Blank (empty) and duplicate records
+The data returned from the Ecobee service for the historical runtime records sometimes contains only the time slot date/time stamp and thermostat identification -- all other data fields are set to '0'.  This seems to occur due to two conditions. The first is for situations where the thermostat was not connected to the network for a sufficiently-long timeframe, resulting in a loss of some of the 5-minute time slots.  The second situation occurs when the API request window includes the most recent data available from the service for the requested thermostat.  In this case, it is common for the last 8-10 records returned to include only partial or all-zero data.  Subsequent requests for the same window will then return valid or more complete data for the same time slots.
+
+The application handles all-zero record returns by ignoring these and not writing them to the database.  These are counted and reported in the statistics for each run however.  (There may be some argument that these should be recorded, as they would indicate times when the thermostat was not connected; however, this can be inferred from the missing time slots in the database.)  On successive iterations of the application, if a duplicate key is detected for a given time slot and thermostat, the existing data in the database is compared against the latest data returned from the service.  The record with the most non-zero data will be recorded in the database.
 
 ## Logging
 The application makes use of the Python logging service to provide information regarding each run iteration.  The log-level may be set to various levels to indicate the desired level of detail to log; initially this is set to DEBUG, the highest level of detail.  This is recommended for the first month or so of running new versions to ensure any bugs are logged appropriately.  After that time period, the log level can be set lower (such as INFO) to limit the size of the log file.
