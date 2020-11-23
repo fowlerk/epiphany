@@ -4,3 +4,7 @@ pytz
 urllib3
 pyecobee
 requests>=2,<3
+<<<<<<< HEAD
+=======
+dnspython
+>>>>>>> ccaa8ddf7ddc5296a6c7c06aea53f9c510f8a341
