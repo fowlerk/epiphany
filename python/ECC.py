@@ -135,7 +135,8 @@ _smtp_server         = 'smtp-relay.gmail.com'
 _smtp_local_hostname = 'epiphanycatholicchurch.org'
 _smtp_debug          = False
 
-def setup_email(smtp_auth_file, smtp_server=_smtp_server, smtp_local_hostname=_smtp_local_hostname,
+def setup_email(smtp_auth_file, smtp_server=_smtp_server,
+                smtp_local_hostname=_smtp_local_hostname,
                 smtp_debug=_smtp_debug, log=None):
     global _smtp_server, _smtp_debug, _smtp_local_hostname
     _smtp_server         = smtp_server
@@ -146,7 +147,11 @@ def setup_email(smtp_auth_file, smtp_server=_smtp_server, smtp_local_hostname=_s
     with open(smtp_auth_file) as f:
         line = f.read()
         global _smtp_auth_username, _smtp_auth_password
-        _smtp_auth_username, _smtp_auth_password = line.split(':')
+        try:
+            _smtp_auth_username, _smtp_auth_password = line.split(':')
+        except Exception as e:
+            log.error(f"Unable to parse SMTP credentials file: {e}")
+            exit(1)
 
     if log:
         log.debug("Setup SMTP auth server")
