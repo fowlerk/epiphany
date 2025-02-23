@@ -108,12 +108,17 @@ def get_synchronizations(cc_contacts, cc_lists, ps_member_workgroups,
         if key not in sync:
             return
 
+        key2 = 'py member duid'
+
         source_wg_name = sync[key]
         for wg in ps_member_workgroups.values():
             if wg['name'] == source_wg_name:
                 members = dict()
                 for item in wg['membership']:
-                    duid = item['py member duid']
+                    if key2 not in item:
+                        continue
+
+                    duid = item[key2]
                     member = ps_members[duid]
                     if member['emailAddress']:
                         email = member['py emailAddresses'][0]
