@@ -1141,11 +1141,18 @@ def family_business_logistics_emails_members(family, member_workgroups, log):
 
 #-----------------------------------------------------------------------------
 
+def member_is_deceased(member):
+    key = 'memberStatus'
+    if key in member and member[key] == 'Deceased':
+        return True
+
+    return False
+
 # Our current definition of an "Active" Member is that they do not
 # have the "Inactive" or "Deceased" Member Status.
 def member_is_active(member):
     key = 'memberStatus'
-    if key in member and (member[key] == 'Inactive' or member[key] == 'Deceased'):
+    if (key in member and member[key] == 'Inactive') or member_is_deceased(member):
         return False
 
     return True
@@ -1156,11 +1163,11 @@ def _filter(families, members,
             family_workgroup_memberships,
             member_workgroup_memberships,
             ministry_type_memberships,
-            active_only, parishioners_only,
+            active_only, parishioners_only, include_deceased,
             org, log):
 
     # If there's nothing to do, then do nothing
-    if not active_only and not parishioners_only:
+    if not active_only and not parishioners_only and include_deceased:
         return
 
     # We have something to filter.
@@ -1169,9 +1176,9 @@ def _filter(families, members,
     mem_active_key = 'py active'
     members_to_delete = list()
     for id, member in members.items():
-        if member_is_active(member):
-            member[mem_active_key] = True
-        else:
+        member[mem_active_key] = True
+        if (active_only and not member_is_active(member)) or \
+           (not include_deceased and member_is_deceased(member)):
             member[mem_active_key] = False
             members_to_delete.append(member['memberDUID'])
 
@@ -1269,6 +1276,7 @@ def _filter(families, members,
 def load_families_and_members(api_key=None,
                               active_only=True, parishioners_only=True,
                               load_contributions=False,
+                              include_deceased=False,
                               log=None, cache_dir="ps-data",
                               expected_org='Epiphany Catholic Church',
                               cache_limit="14m"):
@@ -1364,7 +1372,8 @@ def load_families_and_members(api_key=None,
             family_workgroup_memberships,
             member_workgroup_memberships,
             ministry_type_memberships,
-            active_only, parishioners_only, org_id, log)
+            active_only, parishioners_only, include_deceased,
+            org_id, log)
 
     # Return all the data
     return \
