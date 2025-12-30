@@ -1000,7 +1000,7 @@ def main():
     log.info("Loading ParishSoft info...")
     families, members, family_workgroups, member_workgroups, ministries = \
         ParishSoft.load_families_and_members(api_key=args.api_key,
-                                             active_only=False,
+                                             active_only=True,
                                              parishioners_only=False,
                                              cache_dir=args.ps_cache_dir,
                                              log=log)
