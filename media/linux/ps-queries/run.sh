@@ -29,10 +29,24 @@ goog_cred_dir=$credential_dir/ps-queries
 ./sync-google-group.py \
     --ps-api-keyfile $credential_dir/parishsoft-api-key.txt \
     --ps-cache-dir=$git_base/ps-data \
-    --smtp-auth-file $credential_dir/smtp-auth.txt \
+    --service-account-json $credential_dir/ecc-emailer-service-account.json \
+    --impersonated-user no-reply@epiphanycatholicchurch.org \
     --app-id $goog_cred_dir/sync-google-group-client-id.json \
     --user-credentials $goog_cred_dir/sync-google-group-user-credentials.json \
     --logfile=$google_logfile \
+    --debug
+
+cc_logfile=$logfile_dir/linux/sync-constant-contact/sync-cc-logfile.txt
+cc_cred_dir=$goog_cred_dir
+./sync-constant-contact.py \
+    --ps-api-keyfile $credential_dir/parishsoft-api-key.txt \
+    --ps-cache-dir=$git_base/ps-data \
+    --cc-client-id $cc_cred_dir/constant-contact-client-id.json \
+    --cc-access-token $cc_cred_dir/constant-contact-access-token.json \
+    --service-account-json $credential_dir/ecc-emailer-service-account.json \
+    --impersonated-user no-reply@epiphanycatholicchurch.org \
+    --notify-email ps-constantcontact-sync@epiphanycatholicchurch.org \
+    --logfile=$cc_logfile \
     --debug
 
 ################################################################################
@@ -58,7 +72,8 @@ if test $h -eq 2 -a $m -lt 15; then
     gsheet_logfile=$logfile_dir/linux/gsheet-driven-google-group/gsheet-driven-google-group-logfile.txt
     goog_cred_dir=$credential_dir/gsheet-driven-google-group
     ./gsheet-driven-google-group.py \
-        --smtp-auth-file $credential_dir/smtp-auth.txt \
+        --service-account-json $credential_dir/ecc-emailer-service-account.json \
+        --impersonated-user no-reply@epiphanycatholicchurch.org \
         --logfile=$gsheet_logfile \
 	--app-id $goog_cred_dir/client-id-gsheet-driven-google-group.json \
 	--user-credentials $goog_cred_dir/user-credentials-gsheet-driven-google-group.json

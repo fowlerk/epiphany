@@ -28,7 +28,8 @@ set -u
         smtp-relay.gmail.com \
         director-worship@epiphanycatholicchurch.org,itadmin@epiphanycatholicchurch.org \
         no-reply@epiphanycatholicchurch.org \
-    --smtp-auth-file $cred_base/smtp-auth.txt \
+    --service-account-json $cred_base/ecc-emailer-service-account.json \
+    --impersonated-user no-reply@epiphanycatholicchurch.org \
     --logfile $logfile \
     --app-id $client_id \
     --user-creds $user_creds \

@@ -390,9 +390,12 @@ def add_cli_args():
                         nargs=3,
                         required=False,
                         help='SMTP server hostname, to, and from addresses')
-    parser.add_argument('--smtp-auth-file',
-                        required=True,
-                        help='File containing SMTP AUTH username:password')
+    parser.add_argument('--service-account-json',
+                        default='ecc-emailer-service-account.json',
+                        help='File containing the Google service account JSON key')
+    parser.add_argument('--impersonated-user',
+                        default='no-reply@epiphanycatholicchurch.org',
+                        help='Google Workspace user to impersonate via DWD')
 
     parser.add_argument('--data-dir',
                         required=False,
@@ -454,7 +457,10 @@ def add_cli_args():
         exit(1)
 
     smtp_server = args.smtp[0]
-    ECC.setup_email(args.smtp_auth_file, smtp_server=smtp_server, log=log)
+    ECC.setup_email(service_account_json=args.service_account_json,
+                   impersonated_user=args.impersonated_user,
+                   smtp_server=smtp_server,
+                   log=log)
 
     if not os.path.isdir(args.data_dir):
         log.error('Data directory "{0}" does not exist or is not accessible'

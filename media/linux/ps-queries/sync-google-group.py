@@ -1395,12 +1395,11 @@ def find_matching_members(members, sync, log=None):
 
         # This Member should be in this Google Group.  Yay!
         # But if they don't have an email address, skip them.
-        e = ps_member['py emailAddresses']
-        if e is None:
+        if ps_member['emailAddress'] is None:
             continue
 
         # Use the first email address
-        e = e[0].lower()
+        e = ps_member['py emailAddresses'][0]
         new_entry = {
             'ps_members' : [ ps_member ],
             'email'      : e,
@@ -1445,9 +1444,12 @@ def find_matching_members(members, sync, log=None):
 ####################################################################
 
 def setup_cli_args():
-    tools.argparser.add_argument('--smtp-auth-file',
-                                 required=True,
-                                 help='File containing SMTP AUTH username:password')
+    tools.argparser.add_argument('--service-account-json',
+                                 default='ecc-emailer-service-account.json',
+                                 help='File containing the Google service account JSON key')
+    tools.argparser.add_argument('--impersonated-user',
+                                 default='no-reply@epiphanycatholicchurch.org',
+                                 help='Google Workspace user to impersonate via DWD')
     tools.argparser.add_argument('--slack-token-filename',
                                  help='File containing the Slack bot authorization token')
 
@@ -1519,7 +1521,9 @@ def main():
                             debug=args.debug,
                             logfile=args.logfile, rotate=True,
                             slack_token_filename=args.slack_token_filename)
-    ECC.setup_email(args.smtp_auth_file, smtp_debug=args.debug, log=log)
+    ECC.setup_email(service_account_json=args.service_account_json,
+                   impersonated_user=args.impersonated_user,
+                   log=log)
 
     log.info("Loading ParishSoft info...")
     families, members, family_workgroups, member_worksgroups, ministries = \

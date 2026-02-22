@@ -991,14 +991,25 @@ def _link_families_and_members(families, members, log):
 
 ##############################################################################
 
-# Our current definition of an "Active" Family is that they are
-# not in the "Inactive" Family Group.
+# Our current definition of an "Active" Family is that they are not in
+# the "Inactive" Family Group, and that at least one Member is not
+# deceased.
 def family_is_active(family):
     key = 'py family group'
     if key in family and family[key] == 'Inactive':
         return False
 
-    return True
+    # If all Members are deceased or inactive, the Family is Inactive
+    key = 'py members'
+    if key in family and family[key] is not None:
+        for member in family[key]:
+            # If any Member is active, the Family is Active
+            if member_is_active(member):
+                return True
+
+    # There are either no Members in this Family, or all members must
+    # have been deceased, so the Family is Inactive.
+    return False
 
 # Our current definition of a "Parishioner" Family is one who is in
 # Epiphany's organization.
@@ -1130,11 +1141,18 @@ def family_business_logistics_emails_members(family, member_workgroups, log):
 
 #-----------------------------------------------------------------------------
 
+def member_is_deceased(member):
+    key = 'memberStatus'
+    if key in member and member[key] == 'Deceased':
+        return True
+
+    return False
+
 # Our current definition of an "Active" Member is that they do not
 # have the "Inactive" or "Deceased" Member Status.
 def member_is_active(member):
     key = 'memberStatus'
-    if key in member and (member[key] == 'Inactive' or member[key] == 'Deceased'):
+    if (key in member and member[key] == 'Inactive') or member_is_deceased(member):
         return False
 
     return True
@@ -1145,11 +1163,11 @@ def _filter(families, members,
             family_workgroup_memberships,
             member_workgroup_memberships,
             ministry_type_memberships,
-            active_only, parishioners_only,
+            active_only, parishioners_only, include_deceased,
             org, log):
 
     # If there's nothing to do, then do nothing
-    if not active_only and not parishioners_only:
+    if not active_only and not parishioners_only and include_deceased:
         return
 
     # We have something to filter.
@@ -1158,9 +1176,9 @@ def _filter(families, members,
     mem_active_key = 'py active'
     members_to_delete = list()
     for id, member in members.items():
-        if member_is_active(member):
-            member[mem_active_key] = True
-        else:
+        member[mem_active_key] = True
+        if (active_only and not member_is_active(member)) or \
+           (not include_deceased and member_is_deceased(member)):
             member[mem_active_key] = False
             members_to_delete.append(member['memberDUID'])
 
@@ -1258,6 +1276,7 @@ def _filter(families, members,
 def load_families_and_members(api_key=None,
                               active_only=True, parishioners_only=True,
                               load_contributions=False,
+                              include_deceased=False,
                               log=None, cache_dir="ps-data",
                               expected_org='Epiphany Catholic Church',
                               cache_limit="14m"):
@@ -1353,7 +1372,8 @@ def load_families_and_members(api_key=None,
             family_workgroup_memberships,
             member_workgroup_memberships,
             ministry_type_memberships,
-            active_only, parishioners_only, org_id, log)
+            active_only, parishioners_only, include_deceased,
+            org_id, log)
 
     # Return all the data
     return \
@@ -1362,6 +1382,8 @@ def load_families_and_members(api_key=None,
         family_workgroup_memberships, \
         member_workgroup_memberships, \
         ministry_type_memberships
+
+##############################################################################
 
 def get_member_public_phones(member):
     phones = list()
@@ -1398,3 +1420,79 @@ def get_member_public_email(member):
     if key in member and member[key]:
         return member[key][0]
     return None
+
+def get_member_preferred_first(member):
+    knn1 = 'py contactInfo'
+    knn2 = 'nickName'
+    if knn1 in member and knn2 in member[knn1] and member[knn1][knn2]:
+        return member[knn1][knn2]
+    return member['firstName']
+
+# Simple algorithm for a group salutation of several Members
+#
+# If all the last names are the same:
+#   "First1, First2, and First3" "Last"
+#
+# If any of the last names are different (even if some of them are the
+# same):
+#   "First1 Last1, First2 Last2, and First3 and" "Last3"
+def salutation_for_members(members):
+    kln = 'lastName'
+
+    # Simple case: only 1 Member
+    if len(members) == 1:
+        return get_member_preferred_first(members[0]), members[0][kln]
+
+    # Multiple Members
+    # Do they all have the same last name?
+    all_same = True
+    preferred_firsts = list()
+    for member in members:
+        preferred_firsts.append(get_member_preferred_first(member))
+
+        if members[0][kln] != member[kln]:
+            all_same = False
+
+    # Yes, they all have the same last name
+    if all_same:
+        if len(members) == 2:
+            # If there's only 2 members:
+            # First1 and First2
+            first = ' and '.join(preferred_firsts)
+        else:
+            # If there's more than 2 members:
+            # First1, First2, and First3
+            last2 = ', and '.join(preferred_firsts[-2:])
+            preferred_firsts[-2] = last2
+            del preferred_firsts[-1]
+
+            first = ', '.join(preferred_firsts)
+
+        last = members[0][kln]
+        return first, last
+
+    # No, at least some of them have different last names
+    #
+    # There's no good way to decide how to put what to put in the
+    # "first name" field and what to put in the "last name" field.
+    # So we'll do a simple thing: put just the last last name in
+    # the "last name" field.  Put everything else in the "first
+    # name" field.
+    if len(members) == 2:
+        # If there's 2 members:
+        # First1 Last1 and First2 Last2
+        first = f'{preferred_firsts[0]} {members[0][kln]} and {preferred_firsts[1]}'
+        last = members[1][kln]
+        return first, last
+
+    else:
+        # If there's more than 2 members:
+        # First1 Last1, First2 Last2, and First3 Last3
+        names = list()
+        for i, member in enumerate(members[:-1]):
+            names.append(f'{preferred_firsts[i]} {member[kln]}')
+
+        first = ', '.join(names) + f', and {preferred_firsts[i+1]}'
+        last = members[-1][kln]
+
+        return first, last

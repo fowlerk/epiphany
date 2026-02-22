@@ -43,7 +43,8 @@ filter="--email $email_addr"
 ./make-and-send-emails.py \
     --debug \
     --ps-cache-dir ps-data \
-    --smtp-auth smtp-auth.txt \
+    --service-account-json ecc-emailer-service-account.json \
+    --impersonated-user no-reply@epiphanycatholicchurch.org \
     --email-content $email_file \
     $filter \
     --pledge-data OfferingPledgeDetailsExportReport-2025-09-22.xlsx \
