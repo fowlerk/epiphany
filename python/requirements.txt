@@ -2,6 +2,8 @@ slack_sdk
 pytz
 httplib2
 google-api-python-client
+google-auth
+google-auth-httplib2
 oauth2client
 python-dateutil
 DateTimeRange

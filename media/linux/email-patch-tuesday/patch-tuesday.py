@@ -22,26 +22,49 @@
 # in the ECC Google domain.
 #
 
-import smtplib
+import os
+import sys
 import argparse
 
-from email.message import EmailMessage
+# We assume that there is a "ecc-python-modules" sym link in this
+# directory that points to the directory with ECC.py and friends.
+moddir = os.path.join(os.getcwd(), 'ecc-python-modules')
+if not os.path.exists(moddir):
+    print("ERROR: Could not find the ecc-python-modules directory.")
+    print("ERROR: Please make a ecc-python-modules sym link and run again.")
+    exit(1)
+# On MS Windows, git checks out sym links as a file with a single-line
+# string containing the name of the file that the sym link points to.
+if os.path.isfile(moddir):
+    with open(moddir) as fp:
+        dir = fp.readlines()
+    moddir = os.path.join(os.getcwd(), dir[0])
 
-smtp_server = 'smtp-relay.gmail.com'
+sys.path.insert(0, moddir)
+
+import ECC
+
 smtp_from   = 'Epiphany reminder <no-reply@epiphanycatholicchurch.org>'
 smtp_to     = 'staff@epiphanycatholicchurch.org,itadmin@epiphanycatholicchurch.org'
+# JMS DEBUG OVERRIDE
+smtp_to     = 'jeff@squyres.com'
 subject     = 'Epiphany patch Tuesday reminder'
 
 parser = argparse.ArgumentParser(description='Patch Tuesday email sender')
-parser.add_argument(f'--smtp-auth-file',
-                    required=True,
-                    help='File containing SMTP AUTH username:password for {smtp_server}')
+parser.add_argument('--service-account-json',
+                    default='ecc-emailer-service-account.json',
+                    help='File containing the Google service account JSON key')
+parser.add_argument('--impersonated-user',
+                    default='no-reply@epiphanycatholicchurch.org',
+                    help='Google Workspace user to impersonate via DWD')
 args = parser.parse_args()
 
-# This assumes that the file has a single line in the format of username:password.
-with open(args.smtp_auth_file) as f:
-    line = f.read()
-    smtp_username, smtp_password = line.split(':')
+log = ECC.setup_logging(info=True, debug=False)
+
+ECC.setup_email(service_account_json=args.service_account_json,
+                impersonated_user=args.impersonated_user,
+                from_addr=smtp_from,
+                log=log)
 
 body        = '''<h1>REMINDER!</h1>
 
@@ -66,21 +89,9 @@ Myrador</p>'''
 
 #------------------------------------------------------------------
 
-with smtplib.SMTP_SSL(host=smtp_server,
-                      local_hostname='epiphanycatholicchurch.org') as smtp:
-    msg = EmailMessage()
-    msg.set_content(body)
-
-    # Login; we can't rely on being IP whitelisted.
-    try:
-        smtp.login(smtp_username, smtp_password)
-    except Exception as e:
-        log.error(f'Error: failed to SMTP login: {e}')
-        exit(1)
-
-    msg['From']    = smtp_from
-    msg['To']      = smtp_to
-    msg['Subject'] = subject
-    msg.replace_header('Content-Type', 'text/html')
-
-    smtp.send_message(msg)
+ECC.send_email(to_addr=smtp_to,
+               subject=subject,
+               body=body,
+               log=log,
+               content_type='text/html',
+               from_addr=smtp_from)

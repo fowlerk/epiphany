@@ -252,7 +252,7 @@ def make_ministries_url_portion(member, member_number, log):
 
 #--------------------------------------------------------------------------
 
-def send_family_email(message_body, family, submissions, cookies, smtp, log):
+def send_family_email(message_body, family, submissions, cookies, log):
     # We won't get here unless there's at least one email address to
     # which to send.  But do a sanity check anyway.
     data = family['stewardship']
@@ -290,9 +290,12 @@ def send_family_email(message_body, family, submissions, cookies, smtp, log):
     if args.do_not_send:
         log.info("NOT SENDING EMAIL (--do-not-send)")
     else:
-        ECC.send_email_existing_smtp(message_body, 'text/html',
-                                     smtp_to, smtp_subject, smtp_from,
-                                     smtp, log)
+        ECC.send_email(to_addr=smtp_to,
+                       subject=smtp_subject,
+                       body=message_body,
+                       content_type='text/html',
+                       from_addr=smtp_from,
+                       log=log)
 
     return len(data['to_addresses'])
 
@@ -307,108 +310,105 @@ def _send_family_emails(message_body, families, member_workgroups, submissions, 
     email_sent = list()
     email_not_sent = list()
 
-    # Open just one connection to the SMTP server
-    # JMS Kinda gross that we're taking values from ECC globals
-    with ECC.open_smtp_connection() as smtp:
-        # Iterate through all the family emails that we need to send
-        sorted_fduids = sorted(families)
-        for i, fduid in enumerate(sorted_fduids):
-            family = families[fduid]
-            log.info(f"=== Family: {family['firstName']} {family['lastName']} ({i} of {len(sorted_fduids)})")
+    # Iterate through all the family emails that we need to send
+    sorted_fduids = sorted(families)
+    for i, fduid in enumerate(sorted_fduids):
+        family = families[fduid]
+        log.info(f"=== Family: {family['firstName']} {family['lastName']} ({i} of {len(sorted_fduids)})")
 
-            family['stewardship'] = {
-                'sent_email' : True,
-                'reason not sent' : '',
-                'to_addresses' : '',
-                'to_names' : '',
-                'code' : '',
-                'bounce_url' : '',
-            }
+        family['stewardship'] = {
+            'sent_email' : True,
+            'reason not sent' : '',
+            'to_addresses' : '',
+            'to_names' : '',
+            'code' : '',
+            'bounce_url' : '',
+        }
 
-            # As of September 2024, Jotform cannot handle more than 7 Members'
-            # worth of data in a single form (except with Chrome on a
-            # laptop/desktop -- all other cases fail on the final submit).  So
-            # if this Family has more than 7 Members, do not send to them.
-            #
-            # And since this Family will not be processed by Jotform,
-            # we don't even need to generate a Family Jotform code for
-            # them.  So just skip to the next Family.
-            if len(family['py members']) > MAX_PS_FAMILY_MEMBER_NUM:
-                family['stewardship']['sent_email'] = False
-                family['stewardship']['reason not sent'] = 'Too many Members in Family'
-                if log:
-                    log.info(f"    *** Too many Members in Family ({len(family['py members'])} > {MAX_PS_FAMILY_MEMBER_NUM}) -- will not send")
+        # As of September 2024, Jotform cannot handle more than 7 Members'
+        # worth of data in a single form (except with Chrome on a
+        # laptop/desktop -- all other cases fail on the final submit).  So
+        # if this Family has more than 7 Members, do not send to them.
+        #
+        # And since this Family will not be processed by Jotform,
+        # we don't even need to generate a Family Jotform code for
+        # them.  So just skip to the next Family.
+        if len(family['py members']) > MAX_PS_FAMILY_MEMBER_NUM:
+            family['stewardship']['sent_email'] = False
+            family['stewardship']['reason not sent'] = 'Too many Members in Family'
+            if log:
+                log.info(f"    *** Too many Members in Family ({len(family['py members'])} > {MAX_PS_FAMILY_MEMBER_NUM}) -- will not send")
 
-                # This family will not be processed by Jotform.  So we skip
-                # this family.
-                continue
+            # This family will not be processed by Jotform.  So we skip
+            # this family.
+            continue
 
-            #----------------------------------------------------------------
+        #----------------------------------------------------------------
 
-            members_by_mduid = { member['memberDUID'] : member for member in family['py members'] }
-            to_names = { member['lastName'] : True for member in family['py members'] }
+        members_by_mduid = { member['memberDUID'] : member for member in family['py members'] }
+        to_names = { member['lastName'] : True for member in family['py members'] }
 
-            # Scan through the Members and generate a list of names
-            # and email addresses that we need.  Find the email
-            # addresses of the Members of this Family who should
-            # receive the Business Logistics Emails.
-            to_addresses = ParishSoft.family_business_logistics_emails(family,
-                                                                       member_workgroups,
-                                                                       log)
+        # Scan through the Members and generate a list of names
+        # and email addresses that we need.  Find the email
+        # addresses of the Members of this Family who should
+        # receive the Business Logistics Emails.
+        to_addresses = ParishSoft.family_business_logistics_emails(family,
+                                                                   member_workgroups,
+                                                                   log)
 
-            # Save the things we have computed to far on the family
-            # (we use this data in making the ministry jotform base URL, below)
-            family['stewardship']['to_addresses'] = to_addresses
-            family['stewardship']['to_names'] = to_names
+        # Save the things we have computed to far on the family
+        # (we use this data in making the ministry jotform base URL, below)
+        family['stewardship']['to_addresses'] = to_addresses
+        family['stewardship']['to_names'] = to_names
 
-            #----------------------------------------------------------------
+        #----------------------------------------------------------------
 
-            # If we have no email addresses for the Family, skip emailing them.
-            if len(to_addresses) == 0:
-                family['stewardship']['sent_email'] = False
-                family['stewardship']['reason not sent'] = 'Could not find relevant emails for Family'
-                if log:
-                    log.info(f"    *** Have no HoH/Spouse emails for Family {family['firstName']} {family['lastName']}")
+        # If we have no email addresses for the Family, skip emailing them.
+        if len(to_addresses) == 0:
+            family['stewardship']['sent_email'] = False
+            family['stewardship']['reason not sent'] = 'Could not find relevant emails for Family'
+            if log:
+                log.info(f"    *** Have no HoH/Spouse emails for Family {family['firstName']} {family['lastName']}")
 
-                # Note that we fall through and still process this family, even
-                # though we won't send them an email (because they might get
-                # their Family Code some other way -- e.g., by calling the
-                # office -- and do Jotform eStewardship that way).
+            # Note that we fall through and still process this family, even
+            # though we won't send them an email (because they might get
+            # their Family Code some other way -- e.g., by calling the
+            # office -- and do Jotform eStewardship that way).
 
-            #----------------------------------------------------------------
+        #----------------------------------------------------------------
 
-            # Construct the base jotform URL with the Family-global data
-            jotform_url = make_jotform_base_url(family, log)
+        # Construct the base jotform URL with the Family-global data
+        jotform_url = make_jotform_base_url(family, log)
 
-            # Now add to the ministry jotform URL all the Member data
-            # Since we might truncate the number of family members, do them in
-            # a deterministic order.
-            for member_number, mduid in enumerate(sorted(members_by_mduid)):
-                member = members_by_mduid[mduid]
+        # Now add to the ministry jotform URL all the Member data
+        # Since we might truncate the number of family members, do them in
+        # a deterministic order.
+        for member_number, mduid in enumerate(sorted(members_by_mduid)):
+            member = members_by_mduid[mduid]
 
-                # Add to the overall ministry URL with data for this Member
-                jotform_url += make_ministries_url_portion(member,
-                                                            member_number, log)
+            # Add to the overall ministry URL with data for this Member
+            jotform_url += make_ministries_url_portion(member,
+                                                        member_number, log)
 
-            # Now that we have the entire ministry jotform URL,
-            # make a bounce URL for it
-            bounce_url, cookie  = insert_url_cookie(fduid, jotform_url, cookies, log=log)
-            family['stewardship']['bounce_url'] = bounce_url
-            family['stewardship']['code'] = cookie
+        # Now that we have the entire ministry jotform URL,
+        # make a bounce URL for it
+        bounce_url, cookie  = insert_url_cookie(fduid, jotform_url, cookies, log=log)
+        family['stewardship']['bounce_url'] = bounce_url
+        family['stewardship']['code'] = cookie
 
-            #----------------------------------------------------------------
+        #----------------------------------------------------------------
 
-            # Check if we're going to send
-            if not family['stewardship']['sent_email']:
-                email_not_sent.append(family)
-                continue
+        # Check if we're going to send
+        if not family['stewardship']['sent_email']:
+            email_not_sent.append(family)
+            continue
 
-            #----------------------------------------------------------------
+        #----------------------------------------------------------------
 
-            send_count = send_family_email(message_body, family,
-                                           submissions,
-                                           cookies, smtp, log=log)
-            email_sent.append(family)
+        send_count = send_family_email(message_body, family,
+                                       submissions,
+                                       cookies, log=log)
+        email_sent.append(family)
 
     return email_sent, email_not_sent
 
@@ -893,9 +893,12 @@ def setup_args():
                                 required=True,
                                 help='File containing the templated content of the email to be sent')
 
-    tools.argparser.add_argument('--smtp-auth-file',
-                                 required=True,
-                                 help='File containing SMTP AUTH username:password')
+    tools.argparser.add_argument('--service-account-json',
+                                 default='ecc-emailer-service-account.json',
+                                 help='File containing the Google service account JSON key')
+    tools.argparser.add_argument('--impersonated-user',
+                                 default='no-reply@epiphanycatholicchurch.org',
+                                 help='Google Workspace user to impersonate via DWD')
 
     # These options are for Google Authentication
     global gapp_id
@@ -1030,7 +1033,9 @@ def main():
     process_pledge_data(args.pledge_data, families, log)
 
     # Setup the SMTP connection parameters
-    ECC.setup_email(args.smtp_auth_file, log=log)
+    ECC.setup_email(service_account_json=args.service_account_json,
+                   impersonated_user=args.impersonated_user,
+                   log=log)
 
     # Send the desired emails
     if args.all:

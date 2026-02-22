@@ -34,7 +34,6 @@ if os.path.isfile(moddir):
 sys.path.insert(0, moddir)
 
 import ECC
-import ECCEmailer
 import Google
 import ParishSoftv2 as ParishSoft
 import GoogleAuth
@@ -607,9 +606,13 @@ def statistics_report(args, time_period, ps_members, ps_families,
     }
     try:
         log.info("Sending statistics email...")
-        ECCEmailer.send_email('\n'.join(body), 'html', attachments,
-                              args.smtp_auth_file,
-                              to, subject, smtp_from, log)
+        ECC.send_email(to_addr=to,
+                       subject=subject,
+                       body='\n'.join(body),
+                       log=log,
+                       content_type='text/html',
+                       from_addr=smtp_from,
+                       attachments=attachments)
         log.info("Sent statistics email...")
     except Exception as e:
         log.error(f"==== Error sending email to {to}")
@@ -969,9 +972,12 @@ def send_reports_email(time_period, comments_gfile, pledge_analysis_gfile, args,
     subject = f'{reports_email_subject} ({time_period})'
     try:
         log.info(f'Sending "{subject}" email to {to}')
-        ECCEmailer.send_email('\n'.join(body), 'html', None,
-                              args.smtp_auth_file,
-                              to, subject, smtp_from, log)
+        ECC.send_email(to_addr=to,
+                       subject=subject,
+                       body='\n'.join(body),
+                       log=log,
+                       content_type='text/html',
+                       from_addr=smtp_from)
     except:
         log.error(f"==== Error sending email to {to}")
         log.error(f"Exception: {e}")
@@ -1212,55 +1218,29 @@ def family_pledge_csv_report(args, google, ps_families, jotform, log):
 </html>""")
 
     try:
-
-
-
-
-
-
-
-        # JMS Convert to ECCEmailer
-
-
-
-
-
-
-
         to = pledge_email_to
         log.info(f'Sending "{pledge_email_subject}" email to {to}')
-        with smtplib.SMTP_SSL(host=smtp_server,
-                              local_hostname='epiphanycatholicchurch.org') as smtp:
 
-            # This assumes that the file has a single line in the format of username:password.
-            with open(args.smtp_auth_file) as f:
-                line = f.read()
-                smtp_username, smtp_password = line.split(':')
+        # Build attachments dict if we have a CSV file to include
+        attachments = None
+        if gsheet_id:
+            attachments = {
+                filename: {
+                    'filename' : filename,
+                    'type'     : 'csv',
+                }
+            }
 
-            # Login; we can't rely on being IP whitelisted.
-            try:
-                smtp.login(smtp_username, smtp_password)
-            except Exception as e:
-                log.error(f'Error: failed to SMTP login: {e}')
-                exit(1)
+        ECC.send_email(to_addr=to,
+                       subject=pledge_email_subject,
+                       body='\n'.join(body),
+                       log=log,
+                       content_type='text/html',
+                       from_addr=smtp_from,
+                       attachments=attachments)
 
-            msg = EmailMessage()
-            msg['Subject'] = pledge_email_subject
-            msg['From'] = smtp_from
-            msg['To'] = to
-            msg.set_content('\n'.join(body))
-            msg.replace_header('Content-Type', 'text/html')
-
-            # If there were results, attach the CSV
-            if gsheet_id:
-                with open(filename, "rb") as f:
-                    csv_data = f.read()
-                msg.add_attachment(csv_data, maintype='text', subtype='csv', filename=filename)
-
-            smtp.send_message(msg)
-
-            if gsheet_id:
-                os.unlink(filename)
+        if gsheet_id:
+            os.unlink(filename)
     except:
         print("==== Error with {email}".format(email=to))
         print(traceback.format_exc())
@@ -1894,9 +1874,12 @@ def setup_args():
                                  const=True,
                                  help='If specified, run the comparison for all time (vs. running for the previous time period')
 
-    tools.argparser.add_argument('--smtp-auth-file',
-                                 required=True,
-                                 help='File containing SMTP AUTH username:password')
+    tools.argparser.add_argument('--service-account-json',
+                                 default='ecc-emailer-service-account.json',
+                                 help='File containing the Google service account JSON key')
+    tools.argparser.add_argument('--impersonated-user',
+                                 default='no-reply@epiphanycatholicchurch.org',
+                                 help='Google Workspace user to impersonate via DWD')
 
     global gapp_id
     tools.argparser.add_argument('--app-id',
@@ -1936,6 +1919,10 @@ def main():
 
     args = setup_args()
     log = ECC.setup_logging(debug=args.debug)
+
+    ECC.setup_email(service_account_json=args.service_account_json,
+                   impersonated_user=args.impersonated_user,
+                   log=log)
 
     #---------------------------------------------------------------
 

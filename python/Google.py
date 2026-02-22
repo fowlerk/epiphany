@@ -55,6 +55,11 @@ scopes = {
     'group'    : 'https://www.googleapis.com/auth/apps.groups.settings',
     'reports'  : 'https://www.googleapis.com/auth/admin.reports.audit.readonly',
     'calendar' : 'https://www.googleapis.com/auth/calendar',
+    # gmail.send scope is the Gmail REST API scope -- NOT used here.
+    # ECC.py sends via SMTP+XOAUTH2, which requires the full mail scope below.
+    # 'https://mail.google.com/' is what must be granted in the Google Workspace
+    # Admin Console under Security → API controls → Domain Wide Delegation.
+    'gmail'    : 'https://mail.google.com/',
 }
 
 ####################################################################

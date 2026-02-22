@@ -8,7 +8,7 @@ logfile=$HOME/logfiles/linux/ricoh/logfile.txt
 credential_dir=/home/coeadmin/credentials
 slack_token=$credential_dir/slack-token.txt
 ricoh_password=$credential_dir/ricoh-password.txt
-smtp_creds=$credential_dir/smtp-auth.txt
+smtp_creds=$credential_dir/ecc-emailer-service-account.json
 sqlite3_file=$prog_dir/ricoh.sqlite3
 
 cd $prog_dir
@@ -60,7 +60,8 @@ if test $day -eq 9 && test $t -le 14; then
     ./report.py \
         --debug \
         --smtp-recipient $email_to \
-        --smtp-auth-file $smtp_creds \
+        --service-account-json $smtp_creds \
+        --impersonated-user no-reply@epiphanycatholicchurch.org \
         --db ricoh.sqlite3 \
         --first $first \
         --last $last \

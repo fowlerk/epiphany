@@ -15,7 +15,8 @@ if test $day -eq 2; then
     t=`date '+%d%H%M'`
     if test $t -ge 1000 -a $t -le 1014; then
         ./patch-tuesday.py \
-            --smtp-auth-file $cred_dir/smtp-auth.txt \
+            --service-account-json $cred_dir/ecc-emailer-service-account.json \
+            --impersonated-user no-reply@epiphanycatholicchurch.org \
             |& tee calendar.out
     fi
 fi

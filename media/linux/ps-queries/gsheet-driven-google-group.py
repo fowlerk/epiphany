@@ -288,9 +288,12 @@ def download_google_sheet(google, gfile, log):
 ####################################################################
 
 def setup_cli_args():
-    tools.argparser.add_argument('--smtp-auth-file',
-                                 required=True,
-                                 help='File containing SMTP AUTH username:password')
+    tools.argparser.add_argument('--service-account-json',
+                                 default='ecc-emailer-service-account.json',
+                                 help='File containing the Google service account JSON key')
+    tools.argparser.add_argument('--impersonated-user',
+                                 default='no-reply@epiphanycatholicchurch.org',
+                                 help='Google Workspace user to impersonate via DWD')
 
     global gapp_id
     tools.argparser.add_argument('--app-id',
@@ -337,7 +340,9 @@ def main():
     log = ECC.setup_logging(info=args.verbose,
                             debug=args.debug,
                             logfile=args.logfile)
-    ECC.setup_email(args.smtp_auth_file, smtp_debug=args.debug, log=log)
+    ECC.setup_email(service_account_json=args.service_account_json,
+                   impersonated_user=args.impersonated_user,
+                   log=log)
 
     apis = {
         'admin' : { 'scope'       : Google.scopes['admin'],

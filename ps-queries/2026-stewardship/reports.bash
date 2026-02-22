@@ -16,7 +16,8 @@ additional="--all"
     --debug \
     $additional \
     --ps-cache-dir ps-data \
-    --smtp-auth smtp-auth.txt \
+    --service-account-json ecc-emailer-service-account.json \
+    --impersonated-user no-reply@epiphanycatholicchurch.org \
     2>&1 | tee out.txt
 
 echo "========================================================="

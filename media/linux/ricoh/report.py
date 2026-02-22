@@ -60,8 +60,12 @@ def setup_cli_args():
 
     parser.add_argument('--smtp-recipient',
                         help='Who the email should be sent to')
-    parser.add_argument('--smtp-auth-file',
-                        help='File containing SMTP AUTH username:password')
+    parser.add_argument('--service-account-json',
+                        default='ecc-emailer-service-account.json',
+                        help='File containing the Google service account JSON key')
+    parser.add_argument('--impersonated-user',
+                        default='no-reply@epiphanycatholicchurch.org',
+                        help='Google Workspace user to impersonate via DWD')
 
     parser.add_argument('--slack-token-filename',
                         help='File containing the Slack bot authorization token')
@@ -95,10 +99,8 @@ def setup_cli_args():
     smtp = 0
     if args.smtp_recipient:
         smtp += 1
-    if args.smtp_auth_file:
-        smtp += 1
-    if not (smtp == 0 or smtp == 2):
-        print("ERROR: Must specify either none or all of --smtp-recipient, --smtp-auth-file")
+    if not (smtp == 0 or smtp == 1):
+        print("ERROR: Must specify either none or all of --smtp-recipient")
         exit(1)
 
     # It makes no sense to supply some but not all of the 3 google
@@ -559,7 +561,9 @@ def main():
                              debug=args.debug,
                              logfile=args.logfile, rotate=True,
                              slack_token_filename=args.slack_token_filename)
-    ECC.setup_email(args.smtp_auth_file, log=log)
+    ECC.setup_email(service_account_json=args.service_account_json,
+                   impersonated_user=args.impersonated_user,
+                   log=log)
 
     conn, fields = open_db(log, args.db)
 
@@ -612,7 +616,7 @@ def main():
         drive = google_login(args, log)
         gfile = upload_to_google(drive, timestamp_first, args, log)
 
-    if args.smtp_auth_file:
+    if args.smtp_recipient:
         email_results(timestamp_first, timestamp_last, args, gfile, log)
 
     conn.close()
