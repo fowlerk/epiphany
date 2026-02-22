@@ -43,7 +43,8 @@ cc_cred_dir=$goog_cred_dir
     --ps-cache-dir=$git_base/ps-data \
     --cc-client-id $cc_cred_dir/constant-contact-client-id.json \
     --cc-access-token $cc_cred_dir/constant-contact-access-token.json \
-    --smtp-auth-file $credential_dir/smtp-auth.txt \
+    --service-account-json $credential_dir/ecc-emailer-service-account.json \
+    --impersonated-user no-reply@epiphanycatholicchurch.org \
     --notify-email ps-constantcontact-sync@epiphanycatholicchurch.org \
     --logfile=$cc_logfile \
     --debug
